@@ -39,7 +39,9 @@ public class Main {
                     Main.userViewHistory.put(userid, userHistory);
                     List<String> topThreeProducts = Main.getTopThreeProducts(productid);
                     sender.send("display", "SESSION_ID,recommendation," + String.join(",", topThreeProducts));
-
+                    sender.send("fetch-product", topThreeProducts.get(0));
+                    sender.send("fetch-product", topThreeProducts.get(1));
+                    sender.send("fetch-product", topThreeProducts.get(2));
 
                 })
         });
