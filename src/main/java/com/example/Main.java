@@ -5,40 +5,54 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.*;
+
 @Controller
 @SpringBootApplication
 public class Main {
+    private static HashMap<String, List<String>> relatedProducts = new HashMap<>();
+    private static HashMap<String, List<String>> userViewHistory = new HashMap<>();
 
-  @RequestMapping("/")
-  String index() {
-    return "Running";
-  }
+    @RequestMapping("/")
+    String index() {
+        return "Running";
+    }
 
-  public static void main(String[] args) throws Exception {
-    /*
-    // Listener services use:
-    Service.service(new Subscription[]{
-        new Subscription("user-history", "buy-product", (body, sender) -> {
-          System.out.println("user-history: buy-product");
-        }),
-        new Subscription("user-history", "login", (body, sender) -> {
-          System.out.println("user-history: login");
-          sender.send("buy-product", "Coffee");
-        })
-    });
-    */
+    public static void main(String[] args) throws Exception {
+        Service.service(new Subscription[]{
+                new Subscription("recommendation", "fetch-product", (body, sender) -> {
+                    System.out.println("recommendation: recommend");
+                    System.out.println(body);
+                    String[] messageBody = body.split(",");
+                    String userid = messageBody[1];
+                    String productid = messageBody[2];
 
-    // Gateway service uses:
-    Subscription.Sender globalSender = Service.service(new Subscription[]{
-        new Subscription("display", "display", (body, sender) -> {
-          System.out.println("display: display");
-          System.out.println(body);
-          // Push message over socket to the user
-        })
-    });
-    globalSender.send("display", "Everything works!");
+                    List<String> userHistory = Main.userViewHistory.getOrDefault(userid, new ArrayList<>());
+                    List<String> productHistory = Main.relatedProducts.getOrDefault(productid, new ArrayList<>());
 
-    SpringApplication.run(Main.class, args);
-  }
+                    if (userHistory.size() > 0) {
+                        String previouslyVisitedProduct = userHistory.get(userHistory.size() - 1);
+                        productHistory.add(previouslyVisitedProduct);
+                        Main.relatedProducts.put(productid, productHistory);
+                    }
+                    userHistory.add(productid);
+                    Main.userViewHistory.put(userid, userHistory);
+                    List<String> topThreeProducts = Main.getTopThreeProducts(productid);
+                    sender.send("display", "SESSION_ID,recommendation," + String.join(",", topThreeProducts));
+
+
+                })
+        });
+
+        SpringApplication.run(Main.class, args);
+    }
+
+    private static List<String> getTopThreeProducts(String product_id) {
+        List<String> productHistory = Main.relatedProducts.getOrDefault(product_id, new ArrayList<>());
+        if (productHistory.size() <= 3) {
+            return productHistory;
+        }
+        return productHistory.subList(productHistory.size() - 3, productHistory.size());
+    }
 
 }
